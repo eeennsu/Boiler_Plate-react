@@ -1,6 +1,6 @@
 const express = require('express');
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const { mongoURI } = require('./config/key');
@@ -10,7 +10,6 @@ const { USER_SERVER } = require('../client/src/components/Config');
 app.use(bodyParser.urlencoded({ extended: true }));                    // application/x-www-form-urlencoded를 분석해서 가져와준다
 app.use(bodyParser.json());                                            // json타입으로 된 것을 분석해서 가져올 수 있게 해준다
 app.use(cookieParser());
-
 
 app.use(USER_SERVER, require('./routes/users'));
 

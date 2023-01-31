@@ -30,11 +30,7 @@ const LandingPage = () => {
 
     return (
         <Container>
-          <h2>시작페이지</h2>
-          <br />
-          <button onClick={onClickHandler}>
-            로그아웃
-          </button>
+          LandingPage...
         </Container>
     );
 }

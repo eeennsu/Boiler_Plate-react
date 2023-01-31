@@ -33,7 +33,7 @@ export default function (SpecificComponent, option, adminRoute = null){
                     if(adminRoute && !res.payload.isAdmin){
                         navigate('/');
                     } else {
-                        if(!option){        // 로그인한 유저가 출입 불가능한 페이지를 갈 때는? (로그인, 회원가입 페이지)
+                        if(option === false){        // 로그인한 유저가 출입 불가능한 페이지를 갈 때는? (로그인, 회원가입 페이지)
                             navigate('/');
                         }
                     }                    
