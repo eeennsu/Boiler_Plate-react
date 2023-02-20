@@ -2,6 +2,7 @@ import React, { useEffect } from 'react'
 import { useDispatch } from 'react-redux';
 import { auth } from '../_actions/user_action';
 import { useNavigate } from 'react-router-dom';
+import { message } from 'antd';
 
 export default function (SpecificComponent, option, adminRoute = null){
 
@@ -19,12 +20,11 @@ export default function (SpecificComponent, option, adminRoute = null){
         useEffect(() => {
             dispatch(auth())
              .then(res => {
-                console.log(res);
 
                 // 로그인하지 않은 상태
                 if(!res.payload.isAuth){
-                    // 만약 로그인한 상태이면?
                     if(option){
+                        message.warn('login please...');
                         navigate('/loginPage');
                     }
                 } else {        // 로그인한 상태
@@ -43,8 +43,8 @@ export default function (SpecificComponent, option, adminRoute = null){
              });           
         }, []);
 
-        return <SpecificComponent />
+        return <SpecificComponent />;
     }   
 
-    return AuthenticationCheck
+    return AuthenticationCheck;
 }

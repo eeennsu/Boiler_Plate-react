@@ -29,13 +29,21 @@ const userSchema = mongoose.Schema({
         type: Number,
         default: 0,
     },
+    favorites: {
+        type: Array,
+        default: []
+    },
+    history: {
+        type: Array,   
+        default: [], 
+    },
     image: String,
     token: {                                        // 쿠키에 사용되는 토큰
         type: String,
     },
     tokenExp: {                                     // 토큰 유효 기간
         type: Number,
-    }
+    },
 });
 
 // 유저 모델의 save함수가 실행되기 전에 먼저 이 부분이 실행되는 로직이다
@@ -67,8 +75,8 @@ userSchema.methods.comparePassword = function(plainPassword, next){
     // 비교하기 위해선 plainPassword 역시 암호화를 진행한뒤 비교하는 bycrpt.compare()함수를 이용한다
     let user = this;
     bcrypt.compare(plainPassword, user.password, (err, isMatch) => {
-        console.log(`맞는지 ? ${isMatch}`);
         if(err) return next(err);
+        
         next(null, isMatch);
     });
 };

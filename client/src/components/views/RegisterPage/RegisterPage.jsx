@@ -2,8 +2,7 @@ import React, { useCallback, useState } from 'react'
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { regitserUser } from '../../../_actions/user_action';
-import Container from '../../styled/Container';
-import Form from '../../styled/Form';
+import { Container, Form } from '../../styled/Styled';
 
 const RegisterPage = () => {
 

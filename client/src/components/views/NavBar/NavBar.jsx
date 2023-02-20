@@ -8,14 +8,14 @@ import './sections/navbar.css';
 const NavBar = () => {
 
 	const [isOpen, setIsOpen] = useState(false);
-
-	const showDrawer = useCallback(() => {
+	
+	const showDrawer = () => {
 		setIsOpen(true);
-	}, [isOpen]);
+	};
 
-	const onClose = useCallback(() => {
+	const onClose = () => {
 		setIsOpen(false);
-	}, [isOpen]);
+	};
 
 	return (
 		<nav className='menu'>

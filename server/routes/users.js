@@ -1,13 +1,17 @@
 const express  = require('express');
 const router   = express.Router();
 const { User } = require('../models/User');
+const { Book } = require('../models/Book');
 const { auth } = require('../middleware/auth');
- 
-
+const dayjs = require('dayjs');
+const { Payment } = require('../models/Payment');
+dayjs.locale('ko');
+const async = require('async');
 
 router.get('/auth', auth, (req, res) => {
     // auth가 잘 넘어 올 때 실행되는 로직이다
-    const { _id, email, name, lastname, role, image } = req.user;
+    const { _id, email, name, lastname, role, image, favorites, history } = req.user;
+
     res.status(200).json({ 
         isAdmin: role === 0 ? false : true,
         isAuth: true,
@@ -17,8 +21,11 @@ router.get('/auth', auth, (req, res) => {
         lastname: lastname,
         role: role,
         image: image,
+        favorites: favorites,
+        history: history,
     });
 });
+
 
 
 router.post('/register', (req, res) => {
@@ -91,5 +98,178 @@ router.get('/logout', auth, (req, res) => {
         });
     });
 });
+
+
+// 카트 기능
+router.get('/addToFavorites', auth, (req, res) => {
+    User.findOne({ _id: req.user._id }, (err, userInfo) => {
+        
+        let finds = userInfo.favorites.filter((favorite) => favorite.id === req.query.bookId);
+        // 중복이 있으면 ?
+        if (finds.length > 0) {           
+            User.findOneAndUpdate({ _id: req.user._id, 'favorites.id': req.query.bookId },
+                                  { $inc: { 'favorites.$.quantity': 1 } },
+                                  { new: true },
+                                  (err, userInfo) => {
+                                    if (err) return res.status(400).json({ success: false, err });
+
+                                    return res.status(200).json(userInfo.favorites);
+                                  });
+        } else {            
+            User.findOneAndUpdate({ _id: req.user._id }, 
+                                   { $push: { favorites: { id: req.query.bookId, quantity: 1, date: dayjs(new Date()).format('YYYY / MM / DD / ddd | HH:mm:ss') } } },
+                                   { new: true },
+                                   (err, userInfo) => {
+                                       if (err) return res.json({ success: false, err });
+                                       
+                                       return res.status(200).json(userInfo.favorites);
+                                   });
+        }
+    });
+});
+
+
+router.get('/removeFavoriteBook', auth, (req, res) => {
+    const { bookId } = req.query;
+    
+    User.findOneAndUpdate(
+        { _id: req.user._id }, 
+        { 
+            // $pull은 배열에서 만족하는 특정 연산자를 꺼낸다
+            '$pull': {
+                'favorites': {
+                    id: bookId,
+                }
+            }
+        },
+        { new: true },
+        (err, userInfo) => {
+            if (err) {
+                console.log(err);
+                return res.status(400).json({ removeFavoriteBook: false, err })
+            }
+
+            let { favorites } = userInfo;
+            let idArray = favorites.map((book) => book.id);
+            
+            Book.find({ _id: { $in: idArray } })
+                .populate('writer')
+                .exec((err, detailFavorites) => {
+                    if (err) {
+                        console.log(err);
+                        return res.status(400).json({ removeFavoriteBook: false, err });
+                    }
+
+                    return res.status(200).json({ removeFavoriteBook: true, detailFavorites, favorites })
+                });              
+        });
+});
+
+
+router.post('/paymentSuc', auth, (req, res) => {
+    let history = [];
+    let transactionData = {};
+    let now = dayjs(new Date()).format('YYYY / MM / DD / ddd | HH:mm:ss');
+
+    const { detailFavorites, paymentData } = req.body;
+ 
+    [...detailFavorites].map((detailBook, i) => {
+        let info = {
+            id: detailBook._id,
+            title: detailBook.title,
+            price: detailBook.price,
+            quantity: detailBook.quantity,
+            dateOfPayment: now,
+        };
+
+        history = [...history, info];
+    });
+
+    // paymentUser: {
+    //     id: paymentData.paymentID,
+    //     email: paymentData.email,
+    //     dateOfPayment: dayjs(new Date()).format('YYYY / MM / DD / ddd | HH:mm:ss'),
+    //     paid: paymentData.paid
+    // }     
+
+    transactionData = {
+        user: {
+            id: req.user._id,
+            name: req.user.name,
+            lastname: req.user.lastname,
+            email: req.user.email,
+        },
+        paymentInfos: {
+            paid: paymentData.paid,
+            cancled: paymentData.cancled,
+            email: paymentData.email,
+            payerID: paymentData.payerID,
+            paymentID: paymentData.paymentID,
+            dateOfPayment: now,
+        },
+        book: history
+    };  
+   
+    User.findOneAndUpdate(
+        { _id: req.user._id },
+        { $push: 
+            { history: history },
+            $set: { favorites: [] }
+        },
+        { new: true },
+        (err, user) => {
+            if (err) return res.status(400).json({ suc: false, err });
+
+            const payment = new Payment(transactionData);
+            payment.save((err, data) => {
+                if (err) return res.status(400).json({ suc: false, err });
+
+                let books = [];
+                data.book.map(item => {
+                    books = [...books, { 
+                        id: item.id, 
+                        quantity: item.quantity  
+                    }];
+                });
+
+                // 비동기를 동기처리하기 위한 로직
+                async.eachSeries(books, (item, cb) => {
+                    Book.updateMany(
+                        { _id: item.id },
+                        { $inc: {
+                            'sold': Number(item.quantity)
+                        }},
+                        { new: false }
+                        , (err) => {
+                            if (err) return res.json({ suc: false, err });
+                            
+                            // 구매가 끝나면 모두 빈값으로 처리
+                            return res.status(200).json({ suc: true, favorites: [], detailFavorites: [] });
+                        }
+                    );
+                });
+            });
+        }
+    );   
+});
+
+
+// 위에것은 카트 기능 구현 , 다 마치면 아래로 전환하기
+// router.post('/addToFavorites', auth, (req, res) => {
+
+//     const { id, title, price } = req.body;
+//     User.findOneAndUpdate({ _id: req.user._id }, 
+//                           { $push: { favorites: { id: id, title: title, price: price } } },
+//                           (err, userInfo) => {
+//                           if (err) return res.status(200).json({ success: false, err });
+
+                    
+//                           return res.status(200).json({ success: true });
+//     });
+// });
+
+// router.post('/getIsFavorite', auth, (req, res) => {
+//     User
+// });
 
 module.exports = router;

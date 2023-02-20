@@ -6,7 +6,7 @@ import user from './user_reducer';
  이들을 combineReducers를 이용해 루트 리듀서로 하나로 합치는 역할을 한다 */
  
 const rootReducer = combineReducers({
-   user
+   user,
 });
 
  export default rootReducer;
